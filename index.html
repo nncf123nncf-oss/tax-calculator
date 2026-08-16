@@ -1,0 +1,408 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="金額を入れるだけで税抜・税込の金額と消費税額がすぐわかる消費税計算機です。">
+  <title>消費税計算機</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --background: #EAF2FA;
+      --surface: #FFFFFF;
+      --text: #1F2933;
+      --muted: #5B6B7A;
+      --accent: #1D6F9C;
+      --accent-soft: #E5F1F8;
+      --danger: #D93025;
+      --border: #D6E2EC;
+      --radius: 6px;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      min-width: 320px;
+      margin: 0;
+      background: var(--background);
+      color: var(--text);
+      font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+      font-variant-numeric: tabular-nums;
+      line-height: 1.5;
+    }
+
+    .page {
+      width: min(100% - 32px, 560px);
+      margin: 0 auto;
+      padding: 32px 0 40px;
+    }
+
+    .page-header { margin-bottom: 24px; }
+
+    h1 {
+      margin: 0;
+      font-size: 18px;
+      line-height: 1.4;
+    }
+
+    .lead {
+      margin: 8px 0 0;
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    .card {
+      padding: 16px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background: var(--surface);
+    }
+
+    .field + .field { margin-top: 24px; }
+
+    .field-label, .section-title {
+      display: block;
+      margin: 0 0 8px;
+      font-size: 14px;
+      font-weight: 700;
+    }
+
+    .mode-select, .tax-select {
+      display: flex;
+      gap: 8px;
+    }
+
+    .mode-option, .tax-option { flex: 1; }
+
+    .mode-option input, .tax-option input {
+      position: absolute;
+      inline-size: 1px;
+      block-size: 1px;
+      overflow: hidden;
+      clip: rect(0 0 0 0);
+      white-space: nowrap;
+      clip-path: inset(50%);
+    }
+
+    .mode-option span, .tax-option span {
+      display: flex;
+      min-height: 44px;
+      align-items: center;
+      justify-content: center;
+      padding: 8px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background: var(--surface);
+      color: var(--text);
+      cursor: pointer;
+      font-size: 14px;
+      font-weight: 700;
+      text-align: center;
+    }
+
+    .mode-option input:checked + span, .tax-option input:checked + span {
+      border-color: var(--accent);
+      background: var(--accent-soft);
+      color: var(--accent);
+    }
+
+    .mode-option input:focus-visible + span, .tax-option input:focus-visible + span,
+    #amount:focus-visible, button:focus-visible {
+      outline: 3px solid rgb(29 111 156 / 30%);
+      outline-offset: 2px;
+    }
+
+    .amount-wrap { position: relative; }
+
+    #amount {
+      display: block;
+      width: 100%;
+      min-height: 44px;
+      padding: 10px 44px 10px 12px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background: var(--surface);
+      color: var(--text);
+      font: inherit;
+      font-size: 16px;
+      text-align: right;
+    }
+
+    #amount::placeholder { color: var(--muted); }
+
+    .unit {
+      position: absolute;
+      top: 50%;
+      right: 12px;
+      color: var(--muted);
+      font-size: 14px;
+      pointer-events: none;
+      transform: translateY(-50%);
+    }
+
+    .input-error {
+      min-height: 21px;
+      margin: 4px 0 0;
+      color: var(--danger);
+      font-size: 14px;
+    }
+
+    .input-error[hidden] { display: none; }
+    #amount[aria-invalid="true"] { border-color: var(--danger); }
+
+    .calculate-button, .clear-button {
+      display: block;
+      width: 100%;
+      min-height: 44px;
+      padding: 10px 16px;
+      border: 1px solid var(--accent);
+      border-radius: var(--radius);
+      background: var(--accent);
+      color: #FFFFFF;
+      cursor: pointer;
+      font: inherit;
+      font-weight: 700;
+    }
+
+    .calculate-button:hover { background: #175B80; }
+    .calculate-button:active, .clear-button:active { transform: translateY(1px); }
+
+    .result {
+      margin-top: 24px;
+      padding: 16px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background: var(--surface);
+    }
+
+    .result[hidden] { display: none; }
+
+    .result-title {
+      margin: 0 0 12px;
+      font-size: 16px;
+    }
+
+    .result-list {
+      display: grid;
+      gap: 12px;
+      margin: 0;
+    }
+
+    .result-row {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 16px;
+    }
+
+    .result-row dt { color: var(--muted); font-size: 14px; }
+    .result-row dd { margin: 0; font-size: 16px; font-weight: 700; }
+    .result-row.large dd { font-size: 28px; line-height: 1.2; }
+    .result-row.primary dd { color: var(--accent); font-size: 28px; line-height: 1.2; }
+
+    .result-note {
+      margin: 16px 0 0;
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    .clear-button {
+      margin-top: 16px;
+      border-color: var(--border);
+      background: var(--surface);
+      color: var(--text);
+    }
+
+    .clear-button:hover { background: #F6FAFD; }
+
+    @media (max-width: 480px) {
+      .page { width: min(100% - 24px, 560px); padding-top: 24px; }
+      .card, .result { padding: 16px; }
+    }
+  </style>
+</head>
+<body>
+  <main class="page">
+    <header class="page-header">
+      <h1>消費税計算機</h1>
+      <p class="lead">金額を入れるだけで、税抜・税込の金額と消費税額がすぐわかります。</p>
+    </header>
+
+    <section class="card" aria-label="消費税計算のフォーム">
+      <div class="field">
+        <p class="section-title">計算方法</p>
+        <div class="mode-select" role="radiogroup" aria-label="計算方法を選択">
+          <label class="mode-option">
+            <input type="radio" name="mode" value="from-excl" checked>
+            <span>税抜金額として入力</span>
+          </label>
+          <label class="mode-option">
+            <input type="radio" name="mode" value="from-incl">
+            <span>税込金額として入力</span>
+          </label>
+        </div>
+      </div>
+
+      <div class="field">
+        <label class="field-label" for="amount" id="amount-label">税抜金額を入力</label>
+        <div class="amount-wrap">
+          <input id="amount" type="text" inputmode="numeric" autocomplete="off" placeholder="例：10,000" aria-describedby="amount-error">
+          <span class="unit" aria-hidden="true">円</span>
+        </div>
+        <p class="input-error" id="amount-error" role="alert" hidden></p>
+      </div>
+
+      <div class="field">
+        <p class="section-title">税率</p>
+        <div class="tax-select" role="radiogroup" aria-label="税率を選択">
+          <label class="tax-option">
+            <input type="radio" name="tax-rate" value="0.08">
+            <span>8%</span>
+          </label>
+          <label class="tax-option">
+            <input type="radio" name="tax-rate" value="0.10" checked>
+            <span>10%</span>
+          </label>
+        </div>
+      </div>
+
+      <div class="field">
+        <button class="calculate-button" id="calculate" type="button">計算する</button>
+      </div>
+    </section>
+
+    <section class="result" id="result" aria-live="polite" hidden>
+      <h2 class="result-title">計算結果</h2>
+      <dl class="result-list">
+        <div class="result-row large">
+          <dt>税抜金額</dt>
+          <dd id="excl-value">—</dd>
+        </div>
+        <div class="result-row">
+          <dt>消費税額</dt>
+          <dd id="tax-value">—</dd>
+        </div>
+        <div class="result-row primary">
+          <dt>税込金額</dt>
+          <dd id="incl-value">—</dd>
+        </div>
+      </dl>
+      <p class="result-note" id="result-note">税率10%として計算</p>
+      <p class="result-note">端数は1円未満を四捨五入して表示しています。インボイス制度上の端数処理ルールには対応していません。</p>
+      <button class="clear-button" id="clear" type="button">クリア</button>
+    </section>
+  </main>
+
+  <script>
+    const amount = document.querySelector('#amount');
+    const amountLabel = document.querySelector('#amount-label');
+    const amountError = document.querySelector('#amount-error');
+    const calculateButton = document.querySelector('#calculate');
+    const result = document.querySelector('#result');
+    const clearButton = document.querySelector('#clear');
+    const exclValue = document.querySelector('#excl-value');
+    const inclValue = document.querySelector('#incl-value');
+    const taxValue = document.querySelector('#tax-value');
+    const resultNote = document.querySelector('#result-note');
+
+    const formatter = new Intl.NumberFormat('ja-JP', { maximumFractionDigits: 0 });
+
+    function getMode() {
+      return document.querySelector('input[name="mode"]:checked').value;
+    }
+
+    function getTaxRate() {
+      return Number(document.querySelector('input[name="tax-rate"]:checked').value);
+    }
+
+    function formatYen(value) {
+      return `${formatter.format(Math.round(value))} 円`;
+    }
+
+    function clearError() {
+      amount.removeAttribute('aria-invalid');
+      amountError.hidden = true;
+      amountError.textContent = '';
+    }
+
+    function showError(message) {
+      amount.setAttribute('aria-invalid', 'true');
+      amountError.textContent = message;
+      amountError.hidden = false;
+      result.hidden = true;
+    }
+
+    function updateInputLabel() {
+      const isExcl = getMode() === 'from-excl';
+      amountLabel.textContent = isExcl ? '税抜金額を入力' : '税込金額を入力';
+      amount.placeholder = isExcl ? '例：10,000' : '例：11,000';
+      clearError();
+      result.hidden = true;
+    }
+
+    function parseAmount() {
+      const normalized = amount.value
+        .replace(/[，,\s]/g, '')
+        .replace(/[０-９]/g, (c) => String.fromCharCode(c.charCodeAt(0) - 0xFEE0));
+      if (!normalized) return null;
+      if (!/^\d+$/.test(normalized)) return NaN;
+      return Number(normalized);
+    }
+
+    function calculate() {
+      const sourceAmount = parseAmount();
+      if (sourceAmount === null) {
+        showError('金額を入力してください。');
+        amount.focus();
+        return;
+      }
+      if (!Number.isFinite(sourceAmount) || sourceAmount <= 0) {
+        showError('0より大きい金額を入力してください。');
+        amount.focus();
+        return;
+      }
+
+      clearError();
+      const rate = getTaxRate();
+      const isExcl = getMode() === 'from-excl';
+      const excl = isExcl ? sourceAmount : sourceAmount / (1 + rate);
+      const incl = isExcl ? sourceAmount * (1 + rate) : sourceAmount;
+      const tax = incl - excl;
+
+      exclValue.textContent = formatYen(excl);
+      inclValue.textContent = formatYen(incl);
+      taxValue.textContent = formatYen(tax);
+      resultNote.textContent = `税率${rate * 100}%として計算（1円単位で四捨五入）`;
+      result.hidden = false;
+    }
+
+    function formatInputOnBlur() {
+      const value = parseAmount();
+      if (Number.isFinite(value) && value > 0) {
+        amount.value = formatter.format(value);
+      }
+    }
+
+    document.querySelectorAll('input[name="mode"]').forEach((input) => {
+      input.addEventListener('change', updateInputLabel);
+    });
+    document.querySelectorAll('input[name="tax-rate"]').forEach((input) => {
+      input.addEventListener('change', () => {
+        if (!result.hidden && parseAmount()) calculate();
+      });
+    });
+    amount.addEventListener('input', clearError);
+    amount.addEventListener('blur', formatInputOnBlur);
+    amount.addEventListener('keydown', (event) => {
+      if (event.key === 'Enter') calculate();
+    });
+    calculateButton.addEventListener('click', calculate);
+    clearButton.addEventListener('click', () => {
+      amount.value = '';
+      clearError();
+      result.hidden = true;
+      amount.focus();
+    });
+  </script>
+</body>
+</html>
